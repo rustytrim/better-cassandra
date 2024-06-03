@@ -84,7 +84,7 @@ export declare class Model<T> {
      * @property {string} contains - Contains operator. Example: { contains: ['columnName', 'value'] }
      * @property {string} notContains - Does not contain operator. Example: { notContains: ['columnName', 'value'] }
      */
-    count({ $where, $limit, $prepare }: {
+    count({ $where, $limit, $prepare, }: {
         $where: WhereClause<T>[];
         $limit?: number;
         $prepare?: boolean;
@@ -109,7 +109,7 @@ export declare class Model<T> {
      * @property {string} contains - Contains operator. Example: { contains: ['columnName', 'value'] }
      * @property {string} notContains - Does not contain operator. Example: { notContains: ['columnName', 'value'] }
      */
-    delete({ $where, $limit, $prepare }: {
+    delete({ $where, $limit, $prepare, }: {
         $where: WhereClause<T>[];
         $limit?: number;
         $prepare?: boolean;
@@ -141,7 +141,7 @@ export declare class Model<T> {
      *   $prepare: true,
      * });
      */
-    select({ $include, $where, $limit, $prepare }: {
+    select({ $include, $where, $limit, $prepare, }: {
         $include?: (keyof T)[];
         $where: WhereClause<T>[];
         $limit?: number;
@@ -173,7 +173,7 @@ export declare class Model<T> {
      *   $prepare: true,
      * });
      */
-    selectAll({ $include, $where, $prepare }: {
+    selectAll({ $include, $where, $prepare, }: {
         $include?: (keyof T)[];
         $where: WhereClause<T>[];
         $prepare?: boolean;
@@ -195,7 +195,7 @@ export declare class Model<T> {
      *    $prepare: true
      * });
      */
-    update({ $set, $where, $prepare }: {
+    update({ $set, $where, $prepare, }: {
         $set: Partial<Record<keyof T, T[keyof T]>>;
         $where: WhereClause<T>[];
         $prepare?: boolean;

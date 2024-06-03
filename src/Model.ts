@@ -28,7 +28,7 @@ export class Model<T> {
   constructor(
     public readonly name: string,
     public readonly schema: Schema<T>
-  ) { }
+  ) {}
 
   private async getColumnDefinition(
     fieldName: string,
@@ -58,13 +58,17 @@ export class Model<T> {
       varint: "varint",
     };
 
-    const fieldType = fieldOptions.type as keyof Partial<Record<keyof FieldTypeMap<T>, string>> | FrozenType;
+    const fieldType = fieldOptions.type as
+      | keyof Partial<Record<keyof FieldTypeMap<T>, string>>
+      | FrozenType;
 
     if (fieldType instanceof FrozenType) {
       let startPos = fieldType.udt.indexOf("<") + 1;
       let endPos = fieldType.udt.indexOf(">");
 
-      const type = this.client.types.get(fieldType.udt) || this.client.types.get(fieldType.udt.substring(startPos, endPos));
+      const type =
+        this.client.types.get(fieldType.udt) ||
+        this.client.types.get(fieldType.udt.substring(startPos, endPos));
       if (!type)
         throw new Error(
           `Model "${this.name}" requires the "${fieldType.udt}" user defined type which was not found!`
@@ -75,10 +79,27 @@ export class Model<T> {
       let startPos = fieldType.indexOf("<") + 1;
       let endPos = fieldType.indexOf(">");
 
-      if (typeMapping[fieldType] || typeMapping[fieldType.substring(startPos, endPos) as keyof Partial<Record<keyof FieldTypeMap<T>, string>>]) {
+      if (
+        typeMapping[fieldType] ||
+        typeMapping[
+          fieldType.substring(startPos, endPos) as keyof Partial<
+            Record<keyof FieldTypeMap<T>, string>
+          >
+        ]
+      ) {
         if (fieldOptions.partitionKey) this.primaryKey[0].push(fieldName);
         else if (fieldOptions.cluseringKey) this.primaryKey[1].push(fieldName);
-        return `${fieldName} ${typeMapping[fieldType] || fieldType.split('<')[0] + '<' + typeMapping[fieldType.substring(startPos, endPos) as keyof Partial<Record<keyof FieldTypeMap<T>, string>>] + '>'}`;
+        return `${fieldName} ${
+          typeMapping[fieldType] ||
+          fieldType.split("<")[0] +
+            "<" +
+            typeMapping[
+              fieldType.substring(startPos, endPos) as keyof Partial<
+                Record<keyof FieldTypeMap<T>, string>
+              >
+            ] +
+            ">"
+        }`;
       } else throw new Error(`Unsupported field type: ${fieldType}`);
     }
   }
@@ -152,7 +173,8 @@ export class Model<T> {
       queries.push(`RENAME ${$rename[0].toString()} TO ${$rename[1]}`);
 
     await this.client.cassandara.execute(
-      `ALTER TABLE ${this.client.cassandara.keyspace}.${this.name
+      `ALTER TABLE ${this.client.cassandara.keyspace}.${
+        this.name
       }\n${queries.join("\n")};`
     );
   }
@@ -178,20 +200,35 @@ export class Model<T> {
    * @property {string} contains - Contains operator. Example: { contains: ['columnName', 'value'] }
    * @property {string} notContains - Does not contain operator. Example: { notContains: ['columnName', 'value'] }
    */
-  public async count({ $where, $limit, $prepare }: { $where: WhereClause<T>[], $limit?: number, $prepare?: boolean }) {
+  public async count({
+    $where,
+    $limit,
+    $prepare,
+  }: {
+    $where: WhereClause<T>[];
+    $limit?: number;
+    $prepare?: boolean;
+  }) {
     const conditions: [string[], any[]] = [[], []];
 
-    const conditionHandlers: Record<string, (key: string, value: any) => void> = {
-      equals: (k, v) => conditions[0].push(`${k}=?`) && conditions[1].push(v),
-      notEquals: (k, v) => conditions[0].push(`${k}=?`) && conditions[1].push(v),
-      in: (k, v) => conditions[0].push(`${k} IN ?`) && conditions[1].push(v),
-      notIn: (k, v) => conditions[0].push(`${k} NOT IN ?`) && conditions[1].push(v),
-      greaterThanOrEqual: (k, v) => conditions[0].push(`${k}>=?`) && conditions[1].push(v),
-      lessThanOrEqual: (k, v) => conditions[0].push(`${k}<=?`) && conditions[1].push(v),
-      contains: (k, v) => conditions[0].push(`${k} CONTAINS ?`) && conditions[1].push(v),
-      notContains: (k, v) => conditions[0].push(`${k} DOES NOT CONTAIN ?`) && conditions[1].push(v),
-    };
-
+    const conditionHandlers: Record<string, (key: string, value: any) => void> =
+      {
+        equals: (k, v) => conditions[0].push(`${k}=?`) && conditions[1].push(v),
+        notEquals: (k, v) =>
+          conditions[0].push(`${k}=?`) && conditions[1].push(v),
+        in: (k, v) => conditions[0].push(`${k} IN ?`) && conditions[1].push(v),
+        notIn: (k, v) =>
+          conditions[0].push(`${k} NOT IN ?`) && conditions[1].push(v),
+        greaterThanOrEqual: (k, v) =>
+          conditions[0].push(`${k}>=?`) && conditions[1].push(v),
+        lessThanOrEqual: (k, v) =>
+          conditions[0].push(`${k}<=?`) && conditions[1].push(v),
+        contains: (k, v) =>
+          conditions[0].push(`${k} CONTAINS ?`) && conditions[1].push(v),
+        notContains: (k, v) =>
+          conditions[0].push(`${k} DOES NOT CONTAIN ?`) &&
+          conditions[1].push(v),
+      };
 
     for (const condition of $where) {
       const [operator, args] = Object.entries(condition)[0];
@@ -199,13 +236,19 @@ export class Model<T> {
       conditionHandlers[operator](k.toString(), v);
     }
 
-    const limitClause = $limit ? `LIMIT ${Math.max(1, Math.floor($limit))}` : '';
+    const limitClause = $limit
+      ? `LIMIT ${Math.max(1, Math.floor($limit))}`
+      : "";
 
-    const data = await this.client.cassandara.execute(`
+    const data = await this.client.cassandara.execute(
+      `
       SELECT COUNT(*) 
       FROM ${this.client.cassandara.keyspace}.${this.name}
       WHERE ${conditions[0].map((cond) => cond).join(" AND ")}
-      ${limitClause};`, conditions[1], { prepare: $prepare });
+      ${limitClause};`,
+      conditions[1],
+      { prepare: $prepare }
+    );
 
     return data.rows[0].get("count").high as number;
   }
@@ -230,19 +273,35 @@ export class Model<T> {
    * @property {string} contains - Contains operator. Example: { contains: ['columnName', 'value'] }
    * @property {string} notContains - Does not contain operator. Example: { notContains: ['columnName', 'value'] }
    */
-  public async delete({ $where, $limit, $prepare }: { $where: WhereClause<T>[], $limit?: number, $prepare?: boolean }) {
+  public async delete({
+    $where,
+    $limit,
+    $prepare,
+  }: {
+    $where: WhereClause<T>[];
+    $limit?: number;
+    $prepare?: boolean;
+  }) {
     const conditions: [string[], any[]] = [[], []];
 
-    const conditionHandlers: Record<string, (key: string, value: any) => void> = {
-      equals: (k, v) => conditions[0].push(`${k}=?`) && conditions[1].push(v),
-      notEquals: (k, v) => conditions[0].push(`${k}=?`) && conditions[1].push(v),
-      in: (k, v) => conditions[0].push(`${k} IN ?`) && conditions[1].push(v),
-      notIn: (k, v) => conditions[0].push(`${k} NOT IN ?`) && conditions[1].push(v),
-      greaterThanOrEqual: (k, v) => conditions[0].push(`${k}>=?`) && conditions[1].push(v),
-      lessThanOrEqual: (k, v) => conditions[0].push(`${k}<=?`) && conditions[1].push(v),
-      contains: (k, v) => conditions[0].push(`${k} CONTAINS ?`) && conditions[1].push(v),
-      notContains: (k, v) => conditions[0].push(`${k} DOES NOT CONTAIN ?`) && conditions[1].push(v),
-    };
+    const conditionHandlers: Record<string, (key: string, value: any) => void> =
+      {
+        equals: (k, v) => conditions[0].push(`${k}=?`) && conditions[1].push(v),
+        notEquals: (k, v) =>
+          conditions[0].push(`${k}=?`) && conditions[1].push(v),
+        in: (k, v) => conditions[0].push(`${k} IN ?`) && conditions[1].push(v),
+        notIn: (k, v) =>
+          conditions[0].push(`${k} NOT IN ?`) && conditions[1].push(v),
+        greaterThanOrEqual: (k, v) =>
+          conditions[0].push(`${k}>=?`) && conditions[1].push(v),
+        lessThanOrEqual: (k, v) =>
+          conditions[0].push(`${k}<=?`) && conditions[1].push(v),
+        contains: (k, v) =>
+          conditions[0].push(`${k} CONTAINS ?`) && conditions[1].push(v),
+        notContains: (k, v) =>
+          conditions[0].push(`${k} DOES NOT CONTAIN ?`) &&
+          conditions[1].push(v),
+      };
 
     for (const condition of $where) {
       const [operator, args] = Object.entries(condition)[0];
@@ -250,19 +309,27 @@ export class Model<T> {
       conditionHandlers[operator](k.toString(), v);
     }
 
-    const limitClause = $limit ? `LIMIT ${Math.max(1, Math.floor($limit))}` : '';
+    const limitClause = $limit
+      ? `LIMIT ${Math.max(1, Math.floor($limit))}`
+      : "";
 
-    await this.client.cassandara.execute(`
+    await this.client.cassandara.execute(
+      `
       DELETE FROM ${this.client.cassandara.keyspace}.${this.name}
       WHERE ${conditions[0].map((cond) => cond).join(" AND ")}
-      ${limitClause};`, conditions[1], { prepare: $prepare });
+      ${limitClause};`,
+      conditions[1],
+      { prepare: $prepare }
+    );
   }
 
   /**
    * Removes the table from the database if it exists.
    */
   public async drop() {
-    await this.client.cassandara.execute(`DROP TABLE IF EXISTS ${this.client.cassandara.keyspace}.${this.name};`);
+    await this.client.cassandara.execute(
+      `DROP TABLE IF EXISTS ${this.client.cassandara.keyspace}.${this.name};`
+    );
     this.client.models.delete(this.name);
     this.client.logging.success(
       `Successfully dropped the table: "${this.name}"`
@@ -292,19 +359,41 @@ export class Model<T> {
    *   $prepare: true,
    * });
    */
-  public async select({ $include, $where, $limit, $prepare }: { $include?: (keyof T)[], $where: WhereClause<T>[], $limit?: number, $prepare?: boolean }) {
+  public async select({
+    $include,
+    $where,
+    $limit,
+    $prepare,
+  }: {
+    $include?: (keyof T)[];
+    $where: WhereClause<T>[];
+    $limit?: number;
+    $prepare?: boolean;
+  }) {
     const conditions: [string[], any[]] = [[], []];
 
-    const conditionHandlers: Record<string, (key: string, value: any) => void> = {
-      equals: (k, v) => conditions[0].push(`${k}=?`) && conditions[1].push(v),
-      notEquals: (k, v) => conditions[0].push(`${k}=?`) && conditions[1].push(v),
-      in: (k, v) => conditions[0].push(`${k} IN ?`) && conditions[1].push(v),
-      notIn: (k, v) => conditions[0].push(`${k} NOT IN ?`) && conditions[1].push(v),
-      greaterThanOrEqual: (k, v) => conditions[0].push(`${k}>=?`) && conditions[1].push(v),
-      lessThanOrEqual: (k, v) => conditions[0].push(`${k}<=?`) && conditions[1].push(v),
-      contains: (k, v) => conditions[0].push(`${k} CONTAINS ?`) && conditions[1].push(v),
-      notContains: (k, v) => conditions[0].push(`${k} DOES NOT CONTAIN ?`) && conditions[1].push(v),
-    };
+    const conditionHandlers: Record<string, (key: string, value: any) => void> =
+      {
+        equals: (k, v) => conditions[0].push(`${k}=?`) && conditions[1].push(v),
+        notEquals: (k, v) =>
+          conditions[0].push(`${k}=?`) && conditions[1].push(v),
+        in: (k, v) => conditions[0].push(`${k} IN ?`) && conditions[1].push(v),
+        notIn: (k, v) =>
+          conditions[0].push(`${k} NOT IN ?`) && conditions[1].push(v),
+        greaterThanOrEqual: (k, v) =>
+          conditions[0].push(`${k}>=?`) && conditions[1].push(v),
+        greaterThan: (k, v) =>
+          conditions[0].push(`${k}>?`) && conditions[1].push(v),
+        lessThanOrEqual: (k, v) =>
+          conditions[0].push(`${k}<=?`) && conditions[1].push(v),
+        lessThan: (k, v) =>
+          conditions[0].push(`${k}<?`) && conditions[1].push(v),
+        contains: (k, v) =>
+          conditions[0].push(`${k} CONTAINS ?`) && conditions[1].push(v),
+        notContains: (k, v) =>
+          conditions[0].push(`${k} DOES NOT CONTAIN ?`) &&
+          conditions[1].push(v),
+      };
 
     for (const condition of $where) {
       const [operator, args] = Object.entries(condition)[0];
@@ -312,13 +401,19 @@ export class Model<T> {
       conditionHandlers[operator](k.toString(), v);
     }
 
-    const limitClause = $limit ? `LIMIT ${Math.max(1, Math.floor($limit))}` : '';
+    const limitClause = $limit
+      ? `LIMIT ${Math.max(1, Math.floor($limit))}`
+      : "";
 
-    const data = await this.client.cassandara.execute(`
-      SELECT ${$include ? $include.map((col) => col).join(", ") : '*'} 
+    const data = await this.client.cassandara.execute(
+      `
+      SELECT ${$include ? $include.map((col) => col).join(", ") : "*"} 
       FROM ${this.client.cassandara.keyspace}.${this.name}
       WHERE ${conditions[0].map((cond) => cond).join(" AND ")}
-      ${limitClause};`, conditions[1], { prepare: $prepare });
+      ${limitClause};`,
+      conditions[1],
+      { prepare: $prepare }
+    );
 
     return data.rows as unknown as Partial<T>[];
   }
@@ -331,13 +426,13 @@ export class Model<T> {
    * @param {Array<keyof T>} [options.$include] - Optional. An array of columns to include in the result.
    * @param {Array<WhereClause<T>>} options.$where - An array of conditions to filter the results.
    * @param {boolean} [options.$prepare] - Optional. Indicates whether to prepare the query.
-   * 
+   *
    * @returns {Promise<Array<T | Partial<T>>> | null} A Promise that resolves to an array of retrieved rows,
    * or null if no rows match the specified conditions.
    * The result type dynamically adjusts based on the presence of $include.
    *
    * @throws {Error} If the selection operation fails, an error is logged.
-   * 
+   *
    * @example
    * const results = await myTable.select({
    *   $include: ['column1', 'column2'],
@@ -349,19 +444,35 @@ export class Model<T> {
    *   $prepare: true,
    * });
    */
-  public async selectAll({ $include, $where, $prepare }: { $include?: (keyof T)[], $where: WhereClause<T>[], $prepare?: boolean }) {
+  public async selectAll({
+    $include,
+    $where,
+    $prepare,
+  }: {
+    $include?: (keyof T)[];
+    $where: WhereClause<T>[];
+    $prepare?: boolean;
+  }) {
     const conditions: [string[], any[]] = [[], []];
 
-    const conditionHandlers: Record<string, (key: string, value: any) => void> = {
-      equals: (k, v) => conditions[0].push(`${k}=?`) && conditions[1].push(v),
-      notEquals: (k, v) => conditions[0].push(`${k}=?`) && conditions[1].push(v),
-      in: (k, v) => conditions[0].push(`${k} IN ?`) && conditions[1].push(v),
-      notIn: (k, v) => conditions[0].push(`${k} NOT IN ?`) && conditions[1].push(v),
-      greaterThanOrEqual: (k, v) => conditions[0].push(`${k}>=?`) && conditions[1].push(v),
-      lessThanOrEqual: (k, v) => conditions[0].push(`${k}<=?`) && conditions[1].push(v),
-      contains: (k, v) => conditions[0].push(`${k} CONTAINS ?`) && conditions[1].push(v),
-      notContains: (k, v) => conditions[0].push(`${k} DOES NOT CONTAIN ?`) && conditions[1].push(v),
-    };
+    const conditionHandlers: Record<string, (key: string, value: any) => void> =
+      {
+        equals: (k, v) => conditions[0].push(`${k}=?`) && conditions[1].push(v),
+        notEquals: (k, v) =>
+          conditions[0].push(`${k}=?`) && conditions[1].push(v),
+        in: (k, v) => conditions[0].push(`${k} IN ?`) && conditions[1].push(v),
+        notIn: (k, v) =>
+          conditions[0].push(`${k} NOT IN ?`) && conditions[1].push(v),
+        greaterThanOrEqual: (k, v) =>
+          conditions[0].push(`${k}>=?`) && conditions[1].push(v),
+        lessThanOrEqual: (k, v) =>
+          conditions[0].push(`${k}<=?`) && conditions[1].push(v),
+        contains: (k, v) =>
+          conditions[0].push(`${k} CONTAINS ?`) && conditions[1].push(v),
+        notContains: (k, v) =>
+          conditions[0].push(`${k} DOES NOT CONTAIN ?`) &&
+          conditions[1].push(v),
+      };
 
     for (const condition of $where) {
       const [operator, args] = Object.entries(condition)[0];
@@ -369,10 +480,14 @@ export class Model<T> {
       conditionHandlers[operator](k.toString(), v);
     }
 
-    const data = await this.client.cassandara.execute(`
-      SELECT ${$include ? $include.map((col) => col).join(", ") : '*'} 
+    const data = await this.client.cassandara.execute(
+      `
+      SELECT ${$include ? $include.map((col) => col).join(", ") : "*"} 
       FROM ${this.client.cassandara.keyspace}.${this.name}
-      WHERE ${conditions[0].map((cond) => cond).join(" AND ")}`, conditions[1], { prepare: $prepare });
+      WHERE ${conditions[0].map((cond) => cond).join(" AND ")}`,
+      conditions[1],
+      { prepare: $prepare }
+    );
 
     if (data.rowLength < 1) return null;
 
@@ -387,9 +502,9 @@ export class Model<T> {
    * @param {Partial<Record<keyof T, T[keyof T]>>} options.$set - The fields to be updated along with their new values.
    * @param {WhereClause<T>[]} options.$where - The conditions that records must meet to be updated.
    * @param {boolean} [options.$prepare] - Indicates whether to prepare the statement. Default is undefined.
-   *  
+   *
    * @throws {Error} Throws an error if the Cassandra update query execution fails.
-   * 
+   *
    * @example// Update user data where id is 1, setting the name to 'John' and age to 30
    * await update({
    *    $set: { name: 'John', age: 30 },
@@ -397,18 +512,20 @@ export class Model<T> {
    *    $prepare: true
    * });
    */
-  public async update({ $set, $where, $prepare }: { $set: Partial<Record<keyof T, T[keyof T]>>, $where: WhereClause<T>[], $prepare?: boolean }) {
-
+  public async update({
+    $set,
+    $where,
+    $prepare,
+  }: {
+    $set: Partial<Record<keyof T, T[keyof T]>>;
+    $where: WhereClause<T>[];
+    $prepare?: boolean;
+  }) {
     // SET NAME
     // SET DATA
     // WHERE NAME
     // WHERE DATA
-    const conditions: [string[], any[], string[], any[]] = [
-      [],
-      [],
-      [],
-      []
-    ];
+    const conditions: [string[], any[], string[], any[]] = [[], [], [], []];
 
     const entries = Object.entries($set);
 
@@ -417,16 +534,24 @@ export class Model<T> {
       conditions[1].push(entry[1]);
     }
 
-    const conditionHandlers: Record<string, (key: string, value: any) => void> = {
-      equals: (k, v) => conditions[2].push(`${k}=?`) && conditions[3].push(v),
-      notEquals: (k, v) => conditions[2].push(`${k}=?`) && conditions[3].push(v),
-      in: (k, v) => conditions[2].push(`${k} IN ?`) && conditions[3].push(v),
-      notIn: (k, v) => conditions[2].push(`${k} NOT IN ?`) && conditions[3].push(v),
-      greaterThanOrEqual: (k, v) => conditions[2].push(`${k}>=?`) && conditions[3].push(v),
-      lessThanOrEqual: (k, v) => conditions[2].push(`${k}<=?`) && conditions[3].push(v),
-      contains: (k, v) => conditions[2].push(`${k} CONTAINS ?`) && conditions[3].push(v),
-      notContains: (k, v) => conditions[2].push(`${k} DOES NOT CONTAIN ?`) && conditions[3].push(v),
-    };
+    const conditionHandlers: Record<string, (key: string, value: any) => void> =
+      {
+        equals: (k, v) => conditions[2].push(`${k}=?`) && conditions[3].push(v),
+        notEquals: (k, v) =>
+          conditions[2].push(`${k}=?`) && conditions[3].push(v),
+        in: (k, v) => conditions[2].push(`${k} IN ?`) && conditions[3].push(v),
+        notIn: (k, v) =>
+          conditions[2].push(`${k} NOT IN ?`) && conditions[3].push(v),
+        greaterThanOrEqual: (k, v) =>
+          conditions[2].push(`${k}>=?`) && conditions[3].push(v),
+        lessThanOrEqual: (k, v) =>
+          conditions[2].push(`${k}<=?`) && conditions[3].push(v),
+        contains: (k, v) =>
+          conditions[2].push(`${k} CONTAINS ?`) && conditions[3].push(v),
+        notContains: (k, v) =>
+          conditions[2].push(`${k} DOES NOT CONTAIN ?`) &&
+          conditions[3].push(v),
+      };
 
     for (const condition of $where) {
       const [operator, args] = Object.entries(condition)[0];
@@ -434,12 +559,16 @@ export class Model<T> {
       conditionHandlers[operator](k.toString(), v);
     }
 
-    await this.client.cassandara.execute(`
+    await this.client.cassandara.execute(
+      `
     UPDATE ${this.client.cassandara.keyspace}.${this.name}
     SET ${conditions[0].map((name) => `${name}=?`).join(", ")}
     WHERE ${conditions[2].map((cond) => cond).join(" AND ")}
     IF EXISTS;
-    `, [...conditions[1], ...conditions[3]], { prepare: $prepare });
+    `,
+      [...conditions[1], ...conditions[3]],
+      { prepare: $prepare }
+    );
   }
 
   /**
@@ -457,15 +586,24 @@ export class Model<T> {
    * };
    * await yourInstance.insert(dataToInsert);
    */
-  public async insert(data: Partial<Record<keyof T, T[keyof T]>>, { prepare }: { prepare?: boolean }) {
+  public async insert(
+    data: Partial<Record<keyof T, T[keyof T]>>,
+    { prepare }: { prepare?: boolean }
+  ) {
     const columns = Object.keys(data);
     const values = Object.values(data);
 
-    await this.client.cassandara.execute(`
-      INSERT INTO ${this.client.cassandara.keyspace}.${this.name} (${columns.join(", ")})
-      VALUES (${columns.map(() => '?').join(", ")})
+    await this.client.cassandara.execute(
+      `
+      INSERT INTO ${this.client.cassandara.keyspace}.${
+        this.name
+      } (${columns.join(", ")})
+      VALUES (${columns.map(() => "?").join(", ")})
       IF NOT EXISTS;
-      `, values, { prepare });
+      `,
+      values,
+      { prepare }
+    );
   }
 
   /**
@@ -489,9 +627,10 @@ export class Model<T> {
     await client.cassandara.execute(
       `CREATE TABLE IF NOT EXISTS ${client.cassandara.keyspace}.${this.name} (
           ${columns.join(",\n")},
-          PRIMARY KEY ((${this.primaryKey[0].join(", ")})${this.primaryKey[1].length > 0
-        ? `, ${this.primaryKey[1].join(", ")}`
-        : ""
+          PRIMARY KEY ((${this.primaryKey[0].join(", ")})${
+        this.primaryKey[1].length > 0
+          ? `, ${this.primaryKey[1].join(", ")}`
+          : ""
       })
         );`
     );

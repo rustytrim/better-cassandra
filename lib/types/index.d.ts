@@ -6,7 +6,7 @@ export type WhereClause<T> = {
         notIn?: [K, Partial<T>[K][]];
         greaterThanOrEqual?: [K, Partial<T>[K]];
         lessThanOrEqual?: [K, Partial<T>[K]];
-        moreThan?: [K, Partial<T>[K]];
+        greaterThan?: [K, Partial<T>[K]];
         lessThan?: [K, Partial<T>[K]];
         contains?: [K, Partial<T>[K]];
         notContains?: [K, Partial<T>[K]];

@@ -104,7 +104,9 @@ export declare class Model<T> {
      * @property {string} notEquals - Not equals operator. Example: { notEquals: ['columnName', 'value'] }
      * @property {string} in - In operator. Example: { in: ['columnName', ['value1', 'value2']] }
      * @property {string} notIn - Not in operator. Example: { notIn: ['columnName', ['value1', 'value2']] }
+     * @property {string} greaterThan - Greater than operator. Example: { greaterThan: ['columnName', 'value'] }
      * @property {string} greaterThanOrEqual - Greater than or equal operator. Example: { greaterThanOrEqual: ['columnName', 'value'] }
+     * @property {string} lessThan - Less than operator. Example: { lessThan: ['columnName', 'value'] }
      * @property {string} lessThanOrEqual - Less than or equal operator. Example: { lessThanOrEqual: ['columnName', 'value'] }
      * @property {string} contains - Contains operator. Example: { contains: ['columnName', 'value'] }
      * @property {string} notContains - Does not contain operator. Example: { notContains: ['columnName', 'value'] }

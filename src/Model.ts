@@ -412,6 +412,12 @@ export class Model<T> {
       SELECT ${$include ? $include.map((col) => col).join(", ") : "*"} 
       FROM ${this.client.cassandara.keyspace}.${this.name}
       WHERE ${conditions[0].map((cond) => cond).join(" AND ")}
+      ${
+        this.schema.options?.sortBy &&
+        `ORDER BY ${this.schema.options.sortBy.column.toString()} ${
+          this.schema.options.sortBy.order
+        }`
+      }
       ${limitClause};`,
       conditions[1],
       { prepare: $prepare }
